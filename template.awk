@@ -11,6 +11,11 @@ BEGIN {
 	varname = 0;
 	print "/* Automagically generated, do not edit! */"
 	vars_count = 0;
+	if (prefix == "") {
+		macro = "NFI_TEMPLATE_SIZE";
+	} else {
+		macro = "NFI_" toupper(prefix) "_TEMPLATE_SIZE";
+	}
 }
 
 /^<!--[[:space:]]*var[[:space:]]+[^[:space:]]+[[:space:]]*-->$/ {
@@ -20,8 +25,9 @@ BEGIN {
 		next;
 	}
 	varname = $3;
-	vars[vars_count++] = varname;
-	print "static const u_char " varname "[] = \"\"";
+	symbol = (prefix == "") ? varname : prefix "_" varname;
+	vars[vars_count++] = symbol;
+	print "static const u_char " symbol "[] = \"\"";
 	next;
 }
 
@@ -43,7 +49,7 @@ BEGIN {
 
 END {
 	if (varname) print ";";
-	print "#define NFI_TEMPLATE_SIZE (0 \\";
+	print "#define " macro " (0 \\";
 	for (var in vars) {
 		print "\t+ nfi_sizeof_ssz(" vars[var] ") \\";
 	}

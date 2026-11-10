@@ -1,0 +1,20 @@
+# Translation source for English.
+# Format: key = value, lists use "|" as separator.
+# Run i18n/gen_i18n.sh after editing this file.
+
+name = en
+code = en
+template_header = ../template_en.h
+template_prefix = en
+
+short_weekday = Mon|Tue|Wed|Thu|Fri|Sat|Sun
+long_weekday = Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday
+short_month = Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec
+long_month = January|February|March|April|May|June|July|August|September|October|November|December
+
+am = AM
+pm = PM
+am_lower = am
+pm_lower = pm
+
+parent_dir = Parent directory/

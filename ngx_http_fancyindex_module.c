@@ -24,7 +24,9 @@
 #include <ngx_http.h>
 #include <ngx_log.h>
 
-#include "template.h"
+#include "i18n/nfi_i18n.h"
+#include "i18n/en.h"
+#include "i18n/zh_CN.h"
 
 #if defined(__GNUC__) && (__GNUC__ >= 3)
 # define ngx_force_inline __attribute__((__always_inline__))
@@ -33,60 +35,54 @@
 #endif /* __GNUC__ */
 
 
-static const char *short_weekday[] = {
-    "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
-};
-static const char *long_weekday[] = {
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-};
-static const char *short_month[] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-};
-static const char *long_month[] = {
-    "January", "February", "March", "April", "May", "June", "July",
-    "August", "September", "October", "November", "December",
-};
-
-
-#define DATETIME_FORMATS(F_, t) \
-    F_ ('a',  3, "%3s",  short_weekday[((t)->ngx_tm_wday + 6) % 7]) \
-    F_ ('A',  9, "%s",   long_weekday [((t)->ngx_tm_wday + 6) % 7]) \
-    F_ ('b',  3, "%3s",  short_month[(t)->ngx_tm_mon - 1]         ) \
-    F_ ('B',  9, "%s",   long_month [(t)->ngx_tm_mon - 1]         ) \
-    F_ ('d',  2, "%02d", (t)->ngx_tm_mday                         ) \
-    F_ ('e',  2, "%2d",  (t)->ngx_tm_mday                         ) \
-    F_ ('F', 10, "%d-%02d-%02d",                                    \
-                  (t)->ngx_tm_year,                                 \
-                  (t)->ngx_tm_mon,                                  \
-                  (t)->ngx_tm_mday                                ) \
-    F_ ('H',  2, "%02d", (t)->ngx_tm_hour                         ) \
-    F_ ('I',  2, "%02d", ((t)->ngx_tm_hour % 12) + 1              ) \
-    F_ ('k',  2, "%2d",  (t)->ngx_tm_hour                         ) \
-    F_ ('l',  2, "%2d",  ((t)->ngx_tm_hour % 12) + 1              ) \
-    F_ ('m',  2, "%02d", (t)->ngx_tm_mon                          ) \
-    F_ ('M',  2, "%02d", (t)->ngx_tm_min                          ) \
-    F_ ('p',  2, "%2s",  (((t)->ngx_tm_hour < 12) ? "AM" : "PM")  ) \
-    F_ ('P',  2, "%2s",  (((t)->ngx_tm_hour < 12) ? "am" : "pm")  ) \
-    F_ ('r', 11, "%02d:%02d:%02d %2s",                              \
-                 ((t)->ngx_tm_hour % 12) + 1,                       \
-                 (t)->ngx_tm_min,                                   \
-                 (t)->ngx_tm_sec,                                   \
-                 (((t)->ngx_tm_hour < 12) ? "AM" : "PM")          ) \
-    F_ ('R',  5, "%02d:%02d", (t)->ngx_tm_hour, (t)->ngx_tm_min   ) \
-    F_ ('S',  2, "%02d", (t)->ngx_tm_sec                          ) \
-    F_ ('T',  8, "%02d:%02d:%02d",                                  \
-                 (t)->ngx_tm_hour,                                  \
-                 (t)->ngx_tm_min,                                   \
-                 (t)->ngx_tm_sec                                  ) \
-    F_ ('u',  1, "%1d", (((t)->ngx_tm_wday + 6) % 7) + 1          ) \
-    F_ ('w',  1, "%1d", ((t)->ngx_tm_wday + 6) % 7                ) \
-    F_ ('y',  2, "%02d", (t)->ngx_tm_year % 100                   ) \
-    F_ ('Y',  4, "%04d", (t)->ngx_tm_year                         )
+#define DATETIME_FORMATS(F_, t, lang) \
+    F_ ('a', (lang)->short_weekday_max, "%s",                            \
+                 (lang)->short_weekday[((t)->ngx_tm_wday + 6) % 7].data ) \
+    F_ ('A', (lang)->long_weekday_max, "%s",                             \
+                 (lang)->long_weekday [((t)->ngx_tm_wday + 6) % 7].data ) \
+    F_ ('b', (lang)->short_month_max, "%s",                              \
+                 (lang)->short_month[(t)->ngx_tm_mon - 1].data         ) \
+    F_ ('B', (lang)->long_month_max, "%s",                               \
+                 (lang)->long_month [(t)->ngx_tm_mon - 1].data         ) \
+    F_ ('d',  2, "%02d", (t)->ngx_tm_mday                              ) \
+    F_ ('e',  2, "%2d",  (t)->ngx_tm_mday                              ) \
+    F_ ('F', 10, "%d-%02d-%02d",                                        \
+                  (t)->ngx_tm_year,                                     \
+                  (t)->ngx_tm_mon,                                      \
+                  (t)->ngx_tm_mday                                     ) \
+    F_ ('H',  2, "%02d", (t)->ngx_tm_hour                              ) \
+    F_ ('I',  2, "%02d", ((t)->ngx_tm_hour % 12) + 1                   ) \
+    F_ ('k',  2, "%2d",  (t)->ngx_tm_hour                              ) \
+    F_ ('l',  2, "%2d",  ((t)->ngx_tm_hour % 12) + 1                   ) \
+    F_ ('m',  2, "%02d", (t)->ngx_tm_mon                               ) \
+    F_ ('M',  2, "%02d", (t)->ngx_tm_min                               ) \
+    F_ ('p', NFI_MAX((lang)->am.len, (lang)->pm.len),                   \
+                 "%2s",                                                 \
+                 (((t)->ngx_tm_hour < 12) ? (lang)->am.data : (lang)->pm.data) ) \
+    F_ ('P', NFI_MAX((lang)->am_lower.len, (lang)->pm_lower.len),        \
+                 "%2s",                                                 \
+                 (((t)->ngx_tm_hour < 12) ? (lang)->am_lower.data : (lang)->pm_lower.data) ) \
+    F_ ('r', 9 + NFI_MAX((lang)->am.len, (lang)->pm.len),                \
+                 "%02d:%02d:%02d %2s",                                  \
+                 ((t)->ngx_tm_hour % 12) + 1,                           \
+                 (t)->ngx_tm_min,                                       \
+                 (t)->ngx_tm_sec,                                       \
+                 (((t)->ngx_tm_hour < 12) ? (lang)->am.data : (lang)->pm.data) ) \
+    F_ ('R',  5, "%02d:%02d", (t)->ngx_tm_hour, (t)->ngx_tm_min        ) \
+    F_ ('S',  2, "%02d", (t)->ngx_tm_sec                               ) \
+    F_ ('T',  8, "%02d:%02d:%02d",                                      \
+                 (t)->ngx_tm_hour,                                      \
+                 (t)->ngx_tm_min,                                       \
+                 (t)->ngx_tm_sec                                       ) \
+    F_ ('u',  1, "%1d", (((t)->ngx_tm_wday + 6) % 7) + 1               ) \
+    F_ ('w',  1, "%1d", ((t)->ngx_tm_wday + 6) % 7                     ) \
+    F_ ('y',  2, "%02d", (t)->ngx_tm_year % 100                        ) \
+    F_ ('Y',  4, "%04d", (t)->ngx_tm_year                              )
 
 
 static size_t
-ngx_fancyindex_timefmt_calc_size (const ngx_str_t *fmt)
+ngx_fancyindex_timefmt_calc_size (const ngx_str_t *fmt,
+        const ngx_fancyindex_lang_t *lang)
 {
 #define DATETIME_CASE(letter, fmtlen, fmt, ...) \
         case letter: result += (fmtlen); break;
@@ -99,7 +95,7 @@ ngx_fancyindex_timefmt_calc_size (const ngx_str_t *fmt)
                 break;
             }
             switch (fmt->data[i]) {
-                DATETIME_FORMATS(DATETIME_CASE,)
+                DATETIME_FORMATS(DATETIME_CASE, ((ngx_tm_t *) NULL), lang)
                 default:
                     result++;
             }
@@ -114,7 +110,8 @@ ngx_fancyindex_timefmt_calc_size (const ngx_str_t *fmt)
 
 
 static u_char*
-ngx_fancyindex_timefmt (u_char *buffer, const ngx_str_t *fmt, const ngx_tm_t *tm)
+ngx_fancyindex_timefmt (u_char *buffer, const ngx_str_t *fmt,
+        const ngx_tm_t *tm, const ngx_fancyindex_lang_t *lang)
 {
 #define DATETIME_CASE(letter, fmtlen, fmt, ...) \
         case letter: buffer = ngx_snprintf(buffer, fmtlen, fmt, ##__VA_ARGS__); break;
@@ -127,7 +124,7 @@ ngx_fancyindex_timefmt (u_char *buffer, const ngx_str_t *fmt, const ngx_tm_t *tm
                 break;
             }
             switch (fmt->data[i]) {
-                DATETIME_FORMATS(DATETIME_CASE, tm)
+                DATETIME_FORMATS(DATETIME_CASE, tm, lang)
                 default:
                     *buffer++ = fmt->data[i];
             }
@@ -160,6 +157,7 @@ typedef struct {
     ngx_flag_t show_path;      /**< Whether to display or not the path + '</h1>' after the header */
     ngx_flag_t hide_parent;    /**< Hide parent directory. */
     ngx_flag_t show_dot_files; /**< Show files that start with a dot.*/
+    ngx_uint_t language;       /**< Language used for the built-in output. */
 
     ngx_str_t  css_href;       /**< Link to a CSS stylesheet, or empty if none. */
     ngx_str_t  time_format;    /**< Format used for file timestamps. */
@@ -184,6 +182,28 @@ static ngx_conf_enum_t ngx_http_fancyindex_sort_criteria[] = {
     { ngx_string("name_desc"), NGX_HTTP_FANCYINDEX_SORT_CRITERION_NAME_DESC },
     { ngx_string("size_desc"), NGX_HTTP_FANCYINDEX_SORT_CRITERION_SIZE_DESC },
     { ngx_string("date_desc"), NGX_HTTP_FANCYINDEX_SORT_CRITERION_DATE_DESC },
+    { ngx_null_string, 0 }
+};
+
+enum {
+#define NFI_LANG_ENUM(name, id) NGX_HTTP_FANCYINDEX_LANG_##id,
+    NFI_LANGUAGES(NFI_LANG_ENUM)
+#undef NFI_LANG_ENUM
+    NGX_HTTP_FANCYINDEX_LANG_COUNT,
+    NGX_HTTP_FANCYINDEX_LANG_AUTO
+};
+
+static const ngx_fancyindex_lang_t *const nfi_languages[] = {
+#define NFI_LANG_PTR(name, id) &nfi_lang_##name,
+    NFI_LANGUAGES(NFI_LANG_PTR)
+#undef NFI_LANG_PTR
+};
+
+static ngx_conf_enum_t ngx_http_fancyindex_languages[] = {
+#define NFI_LANG_CONF(name, id) { ngx_string(#name), NGX_HTTP_FANCYINDEX_LANG_##id },
+    NFI_LANGUAGES(NFI_LANG_CONF)
+#undef NFI_LANG_CONF
+    { ngx_string("auto"), NGX_HTTP_FANCYINDEX_LANG_AUTO },
     { ngx_null_string, 0 }
 };
 
@@ -376,7 +396,8 @@ static uintptr_t
  * above).
  */
 static ngx_inline ngx_buf_t*
-    make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href)
+    make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href,
+                    const ngx_fancyindex_lang_t *lang)
     ngx_force_inline;
 
 
@@ -423,6 +444,13 @@ static ngx_command_t  ngx_http_fancyindex_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_fancyindex_loc_conf_t, exact_size),
       NULL },
+
+    { ngx_string("fancyindex_language"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_enum_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_fancyindex_loc_conf_t, language),
+      &ngx_http_fancyindex_languages },
 
     { ngx_string("fancyindex_header"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
@@ -624,15 +652,100 @@ ngx_fancyindex_escape_filename(u_char *dst, u_char *src, size_t size)
 #endif /* NGX_ESCAPE_URI_COMPONENT */
 
 
+/*
+ * Select the language used for the built-in output. With "auto", the
+ * Accept-Language header is walked in order and the first language whose
+ * prefix matches (for example "zh" for "zh-CN") is used.
+ */
+static const ngx_fancyindex_lang_t *
+ngx_http_fancyindex_get_lang(ngx_http_request_t *r,
+        ngx_http_fancyindex_loc_conf_t *alcf)
+{
+    ngx_list_part_t *part;
+    ngx_table_elt_t *header;
+    ngx_uint_t       i, j;
+    const nfi_str_t *code;
+    u_char          *p, *q, *end;
+
+    if (alcf->language < NGX_HTTP_FANCYINDEX_LANG_COUNT) {
+        return nfi_languages[alcf->language];
+    }
+
+    part = &r->headers_in.headers.part;
+    header = part->elts;
+
+    for (i = 0; ; i++) {
+        if (i >= part->nelts) {
+            if (part->next == NULL) {
+                break;
+            }
+            part = part->next;
+            header = part->elts;
+            i = 0;
+        }
+
+        if (header[i].key.len != sizeof("Accept-Language") - 1
+            || ngx_strncasecmp(header[i].key.data,
+                               (u_char *) "Accept-Language",
+                               sizeof("Accept-Language") - 1) != 0)
+        {
+            continue;
+        }
+
+        p = header[i].value.data;
+        end = p + header[i].value.len;
+
+        while (p < end) {
+            while (p < end && (*p == ' ' || *p == ',')) {
+                p++;
+            }
+
+            q = p;
+            while (q < end && *q != ',' && *q != ';') {
+                q++;
+            }
+            while (q > p && q[-1] == ' ') {
+                q--;
+            }
+
+            for (j = 0; j < NGX_HTTP_FANCYINDEX_LANG_COUNT; j++) {
+                code = &nfi_languages[j]->code;
+
+                if ((size_t) (q - p) >= code->len
+                    && ngx_strncasecmp(p, (u_char *) code->data,
+                                       code->len) == 0
+                    && ((size_t) (q - p) == code->len
+                        || p[code->len] == '-'
+                        || p[code->len] == '_'))
+                {
+                    return nfi_languages[j];
+                }
+            }
+
+            p = q;
+            while (p < end && *p != ',') {
+                p++;
+            }
+        }
+
+        break;
+    }
+
+    return nfi_languages[0];
+}
+
+
 static ngx_inline ngx_buf_t*
-make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href)
+make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href,
+        const ngx_fancyindex_lang_t *lang)
 {
     ngx_buf_t *b;
+    const ngx_fancyindex_template_t *tpl = lang->tpl;
     size_t blen = r->uri.len
-        + ngx_sizeof_ssz(t01_head1)
-        + ngx_sizeof_ssz(t02_head2)
-        + ngx_sizeof_ssz(t03_head3)
-        + ngx_sizeof_ssz(t04_body1)
+        + tpl->t01_head1_len
+        + tpl->t02_head2_len
+        + tpl->t03_head3_len
+        + tpl->t04_body1_len
         ;
 
     if (css_href.len) {
@@ -645,7 +758,7 @@ make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href)
     if ((b = ngx_create_temp_buf(r->pool, blen)) == NULL)
         return NULL;
 
-    b->last = ngx_cpymem_ssz(b->last, t01_head1);
+    b->last = ngx_cpymem(b->last, tpl->t01_head1, tpl->t01_head1_len);
 
     if (css_href.len) {
         b->last = ngx_cpymem_str(b->last, css_href_pre);
@@ -653,10 +766,10 @@ make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href)
         b->last = ngx_cpymem_str(b->last, css_href_post);
     }
 
-    b->last = ngx_cpymem_ssz(b->last, t02_head2);
+    b->last = ngx_cpymem(b->last, tpl->t02_head2, tpl->t02_head2_len);
     b->last = ngx_cpymem_str(b->last, r->uri);
-    b->last = ngx_cpymem_ssz(b->last, t03_head3);
-    b->last = ngx_cpymem_ssz(b->last, t04_body1);
+    b->last = ngx_cpymem(b->last, tpl->t03_head3, tpl->t03_head3_len);
+    b->last = ngx_cpymem(b->last, tpl->t04_body1, tpl->t04_body1_len);
 
     return b;
 }
@@ -665,15 +778,17 @@ make_header_buf(ngx_http_request_t *r, const ngx_str_t css_href)
 static ngx_inline ngx_int_t
 make_content_buf(
         ngx_http_request_t *r, ngx_buf_t **pb,
-        ngx_http_fancyindex_loc_conf_t *alcf)
+        ngx_http_fancyindex_loc_conf_t *alcf,
+        const ngx_fancyindex_lang_t *lang)
 {
     ngx_http_fancyindex_entry_t *entry;
 
+    const ngx_fancyindex_template_t *tpl = lang->tpl;
     int (*sort_cmp_func)(const void *, const void *);
     const char  *sort_url_args = "";
 
     off_t        length;
-    size_t       len, root, allocated, escape_html;
+    size_t       len, root, allocated, escape_html, parent_len;
     int64_t      multiplier;
     u_char      *filename, *last;
     ngx_tm_t     tm;
@@ -864,29 +979,36 @@ make_content_buf(
 
     escape_html = ngx_escape_html(NULL, r->uri.data, r->uri.len);
 
+    /*
+     * Exact size of the "Parent directory" row, using the longest possible
+     * sort argument ("?C=N&amp;O=A" is as long as the other variants).
+     */
+    if (r->uri.len > 1 && alcf->hide_parent == 0) {
+        parent_len = ngx_sizeof_ssz("<tr><td colspan=\"2\" class=\"link\"><a href=\"../")
+                   + ngx_sizeof_ssz("?C=N&amp;O=A")
+                   + ngx_sizeof_ssz("\">")
+                   + lang->parent_dir.len
+                   + ngx_sizeof_ssz("</a></td><td class=\"size\">-</td><td class=\"date\">-</td></tr>")
+                   + 2 /* CR LF */;
+    } else {
+        parent_len = 0;
+    }
+
     if (alcf->show_path)
         len = r->uri.len + escape_html
-          + ngx_sizeof_ssz(t05_body2)
-          + ngx_sizeof_ssz(t06_list1)
-          + ngx_sizeof_ssz(t_parentdir_entry)
-          + ngx_sizeof_ssz(t07_list2)
-          + ngx_fancyindex_timefmt_calc_size (&alcf->time_format) * entries.nelts
+          + tpl->t05_body2_len
+          + tpl->t06_list1_len
+          + parent_len
+          + tpl->t07_list2_len
+          + ngx_fancyindex_timefmt_calc_size (&alcf->time_format, lang) * entries.nelts
           ;
    else
         len = r->uri.len + escape_html
-          + ngx_sizeof_ssz(t06_list1)
-          + ngx_sizeof_ssz(t_parentdir_entry)
-          + ngx_sizeof_ssz(t07_list2)
-          + ngx_fancyindex_timefmt_calc_size (&alcf->time_format) * entries.nelts
+          + tpl->t06_list1_len
+          + parent_len
+          + tpl->t07_list2_len
+          + ngx_fancyindex_timefmt_calc_size (&alcf->time_format, lang) * entries.nelts
           ;
-
-    /*
-     * If we are a the root of the webserver (URI =  "/" --> length of 1),
-     * do not display the "Parent Directory" link.
-     */
-    if (r->uri.len == 1) {
-        len -= ngx_sizeof_ssz(t_parentdir_entry);
-    }
 
     entry = entries.elts;
     for (i = 0; i < entries.nelts; i++) {
@@ -1048,11 +1170,11 @@ make_content_buf(
     /* Display the path, if needed */
     if (alcf->show_path){
         b->last = last = (u_char *) ngx_escape_html(b->last, r->uri.data, r->uri.len);
-        b->last = ngx_cpymem_ssz(b->last, t05_body2);
+        b->last = ngx_cpymem(b->last, tpl->t05_body2, tpl->t05_body2_len);
     }
 
     /* Open the <table> tag */
-    b->last = ngx_cpymem_ssz(b->last, t06_list1);
+    b->last = ngx_cpymem(b->last, tpl->t06_list1, tpl->t06_list1_len);
 
     tp = ngx_timeofday();
 
@@ -1066,8 +1188,11 @@ make_content_buf(
                                  sort_url_args,
                                  ngx_sizeof_ssz("?C=N&amp;O=A"));
         }
+        b->last = ngx_cpymem_ssz(b->last, "\">");
+        b->last = ngx_cpymem(b->last, lang->parent_dir.data,
+                             lang->parent_dir.len);
         b->last = ngx_cpymem_ssz(b->last,
-                                 "\">Parent directory/</a></td>"
+                                 "</a></td>"
                                  "<td class=\"size\">-</td>"
                                  "<td class=\"date\">-</td>"
                                  "</tr>"
@@ -1144,7 +1269,7 @@ make_content_buf(
 
         ngx_gmtime(entry[i].mtime + tp->gmtoff * 60 * alcf->localtime, &tm);
         b->last = ngx_cpymem_ssz(b->last, "</td><td class=\"date\">");
-        b->last = ngx_fancyindex_timefmt(b->last, &alcf->time_format, &tm);
+        b->last = ngx_fancyindex_timefmt(b->last, &alcf->time_format, &tm, lang);
         b->last = ngx_cpymem_ssz(b->last, "</td></tr>");
 
         *b->last++ = CR;
@@ -1152,7 +1277,7 @@ make_content_buf(
     }
 
     /* Output table bottom */
-    b->last = ngx_cpymem_ssz(b->last, t07_list2);
+    b->last = ngx_cpymem(b->last, tpl->t07_list2, tpl->t07_list2_len);
 
     *pb = b;
     return NGX_OK;
@@ -1168,6 +1293,7 @@ ngx_http_fancyindex_handler(ngx_http_request_t *r)
     ngx_str_t                       rel_uri;
     ngx_int_t                       rc;
     ngx_http_fancyindex_loc_conf_t *alcf;
+    const ngx_fancyindex_lang_t    *lang;
     ngx_chain_t                     out[3] = {
         { NULL, NULL }, { NULL, NULL}, { NULL, NULL }};
 
@@ -1195,7 +1321,9 @@ ngx_http_fancyindex_handler(ngx_http_request_t *r)
         return NGX_DECLINED;
     }
 
-    if ((rc = make_content_buf(r, &out[0].buf, alcf)) != NGX_OK)
+    lang = ngx_http_fancyindex_get_lang(r, alcf);
+
+    if ((rc = make_content_buf(r, &out[0].buf, alcf, lang)) != NGX_OK)
         return rc;
 
     out[0].buf->last_in_chain = 1;
@@ -1264,7 +1392,7 @@ add_builtin_header:
             out[0].buf->last = alcf->header.local.data + alcf->header.local.len;
         } else {
             /* Prepare a buffer with the contents of the builtin header. */
-            out[0].buf = make_header_buf(r, alcf->css_href);
+            out[0].buf = make_header_buf(r, alcf->css_href, lang);
         }
     }
 
@@ -1282,8 +1410,9 @@ add_builtin_header:
             out[last].buf->pos = alcf->footer.local.data;
             out[last].buf->last = alcf->footer.local.data + alcf->footer.local.len;
         } else {
-            out[last].buf->pos = (u_char*) t08_foot1;
-            out[last].buf->last = (u_char*) t08_foot1 + sizeof(t08_foot1) - 1;
+            out[last].buf->pos = (u_char*) lang->tpl->t08_foot1;
+            out[last].buf->last = (u_char*) lang->tpl->t08_foot1
+                                  + lang->tpl->t08_foot1_len;
         }
 
         out[last-1].buf->last_in_chain = 0;
@@ -1344,8 +1473,9 @@ add_builtin_header:
         if (out[0].buf == NULL)
             return NGX_ERROR;
         out[0].buf->memory = 1;
-        out[0].buf->pos = (u_char*) t08_foot1;
-        out[0].buf->last = (u_char*) t08_foot1 + sizeof(t08_foot1) - 1;
+        out[0].buf->pos = (u_char*) lang->tpl->t08_foot1;
+        out[0].buf->last = (u_char*) lang->tpl->t08_foot1
+                           + lang->tpl->t08_foot1_len;
         out[0].buf->last_in_chain = 1;
         out[0].buf->last_buf = 1;
         /* Directly send out the builtin footer */
@@ -1480,6 +1610,7 @@ ngx_http_fancyindex_create_loc_conf(ngx_conf_t *cf)
     conf->show_path      = NGX_CONF_UNSET;
     conf->hide_parent    = NGX_CONF_UNSET;
     conf->show_dot_files = NGX_CONF_UNSET;
+    conf->language       = NGX_CONF_UNSET_UINT;
 
     return conf;
 }
@@ -1501,6 +1632,8 @@ ngx_http_fancyindex_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_value(conf->exact_size, prev->exact_size, 1);
     ngx_conf_merge_value(conf->show_path, prev->show_path, 1);
     ngx_conf_merge_value(conf->show_dot_files, prev->show_dot_files, 0);
+    ngx_conf_merge_uint_value(conf->language, prev->language,
+                              NGX_HTTP_FANCYINDEX_LANG_EN);
 
     ngx_conf_merge_str_value(conf->header.path, prev->header.path, "");
     ngx_conf_merge_str_value(conf->header.local, prev->header.local, "");

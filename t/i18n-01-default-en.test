@@ -1,0 +1,18 @@
+#! /bin/bash
+cat <<---
+This test checks that the built-in output uses English by default, i.e.
+without any "fancyindex_language" directive in the configuration.
+--
+
+nginx_start
+content=$(fetch '/child-directory/')
+
+for label in 'Index of' 'File Name' 'File Size' 'Date' 'Parent directory/' ; do
+	if ! grep -qF "${label}" <<< "${content}" ; then
+		fail 'missing English label: %s\n' "${label}"
+	fi
+done
+
+if grep -qF '文件名称' <<< "${content}" ; then
+	fail 'Chinese labels are present without fancyindex_language zh_CN\n'
+fi

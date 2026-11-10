@@ -1,0 +1,24 @@
+#! /bin/bash
+cat <<---
+This test checks the Chinese AM/PM markers with the "%p", "%P" and "%r"
+conversions, whose widths depend on the language being used.
+--
+
+readonly datadir="${TESTDIR}/.i18n-ampm"
+function cleanup () { rm -rf "${datadir}" ; }
+trap 'nginx_stop; cleanup' EXIT
+
+mkdir -p "${datadir}"
+TZ=UTC touch -d '2023-11-06T06:00:00' "${datadir}/morning.txt"
+TZ=UTC touch -d '2023-11-06T18:00:00' "${datadir}/evening.txt"
+
+nginx_start 'fancyindex_language zh_CN; fancyindex_time_format "%p|%P|%r";'
+content=$(fetch '/.i18n-ampm/')
+
+if ! grep -qF '上午|上午|07:00:00 上午' <<< "${content}" ; then
+	fail 'missing AM markers for the 06:00 file\n'
+fi
+
+if ! grep -qF '下午|下午|07:00:00 下午' <<< "${content}" ; then
+	fail 'missing PM markers for the 18:00 file\n'
+fi

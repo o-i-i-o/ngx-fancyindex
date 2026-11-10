@@ -1,0 +1,20 @@
+# 简体中文翻译源文件。
+# 格式：key = value，列表使用 "|" 分隔。
+# 修改后请运行 i18n/gen_i18n.sh 重新生成头文件。
+
+name = zh_CN
+code = zh
+template_header = ../template_zh.h
+template_prefix = zh
+
+short_weekday = 周一|周二|周三|周四|周五|周六|周日
+long_weekday = 星期一|星期二|星期三|星期四|星期五|星期六|星期日
+short_month = 一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+long_month = 一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+
+am = 上午
+pm = 下午
+am_lower = 上午
+pm_lower = 下午
+
+parent_dir = 上级目录

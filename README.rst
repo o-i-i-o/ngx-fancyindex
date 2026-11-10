@@ -279,6 +279,19 @@ fancyindex_localtime
 :Description:
   Enables showing file times as local time. Default is “off” (GMT time).
 
+fancyindex_language
+~~~~~~~~~~~~~~~~~~~
+:Syntax: *fancyindex_language* [*en* | *zh_CN* | *auto*]
+:Default: fancyindex_language en
+:Context: http, server, location
+:Description:
+  Selects the language used for the built-in output: the template labels and
+  the names of weekdays, months and the AM/PM markers. When set to *auto*, the
+  ``Accept-Language`` header of the request is inspected and Chinese is used
+  if it mentions ``zh``, English otherwise. Custom headers and footers
+  supplied through ``fancyindex_header`` and ``fancyindex_footer`` are not
+  affected and are used as-is.
+
 fancyindex_time_format
 ~~~~~~~~~~~~~~~~~~~~~~
 :Syntax: *fancyindex_time_format* string
@@ -287,8 +300,8 @@ fancyindex_time_format
 :Description:
   Format string used for timestamps. The format specifiers are a subset of
   those supported by the `strftime <https://linux.die.net/man/3/strftime>`_
-  function, and the behavior is locale-independent (for example, day and month
-  names are always in English). The supported formats are:
+  function, and the day and month names follow the ``fancyindex_language``
+  directive (English by default). The supported formats are:
 
   * ``%a``: Abbreviated name of the day of the week.
   * ``%A``: Full name of the day of the week.

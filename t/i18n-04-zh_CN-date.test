@@ -1,0 +1,24 @@
+#! /bin/bash
+cat <<---
+This test checks the Chinese weekday and month names. It uses "十一月", which
+needs nine bytes in UTF-8: the shortest month name needs six, so a fixed
+width buffer would truncate this one.
+--
+
+readonly datadir="${TESTDIR}/.i18n-date"
+function cleanup () { rm -rf "${datadir}" ; }
+trap 'nginx_stop; cleanup' EXIT
+
+mkdir -p "${datadir}"
+TZ=UTC touch -d '2023-11-05T06:00:00' "${datadir}/sun.txt"   # 星期日
+TZ=UTC touch -d '2023-11-06T06:00:00' "${datadir}/mon.txt"   # 星期一
+TZ=UTC touch -d '2023-11-07T06:00:00' "${datadir}/tue.txt"   # 星期二
+
+nginx_start 'fancyindex_language zh_CN; fancyindex_time_format "%A %B";'
+content=$(fetch '/.i18n-date/')
+
+for label in '星期日 十一月' '星期一 十一月' '星期二 十一月' ; do
+	if ! grep -qF "${label}" <<< "${content}" ; then
+		fail 'missing or truncated date name: %s\n' "${label}"
+	fi
+done

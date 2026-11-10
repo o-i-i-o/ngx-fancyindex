@@ -1,0 +1,102 @@
+#! /bin/bash
+cat <<---
+Unit tests for the i18n translation generator (i18n/gen_i18n.awk). These do
+not need a running Nginx: they feed translation sources to the generator and
+check both the emitted C code and the diagnostics for invalid input.
+--
+
+readonly i18ndir="${TESTDIR}/../i18n"
+readonly generator="${i18ndir}/gen_i18n.awk"
+
+if [[ ! -r ${generator} ]] ; then
+	fail 'generator not found: %s\n' "${generator}"
+fi
+
+readonly workdir=$(mktemp -d)
+function cleanup () { rm -rf "${workdir}" ; }
+trap cleanup EXIT
+
+cat > "${workdir}/sample.lang" <<-'EOF'
+name = xx
+code = xx
+template_header = ../template_xx.h
+template_prefix = xx
+
+short_weekday = 周日|周一|周二|周三|周四|周五|周六
+long_weekday = 星期日|星期一|星期二|星期三|星期四|星期五|星期六
+short_month = 一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+long_month = 一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+
+am = 上午
+pm = 下午
+am_lower = 上午
+pm_lower = 下午
+
+parent_dir = 上级目录
+EOF
+
+function generate () {
+	LC_ALL=C awk -f "${generator}" "$1"
+}
+
+function expect () {
+	if ! grep -qF "$2" <<< "$1" ; then
+		fail 'generated output does not contain: %s\n' "$2"
+	fi
+}
+
+function expect_failure () {
+	if LC_ALL=C awk -f "${generator}" "$1" > "${workdir}/out" \
+			2> "${workdir}/err" ; then
+		fail 'generator accepted invalid input: %s\n' "$1"
+	fi
+	if ! grep -qF "$2" "${workdir}/err" ; then
+		fail 'missing diagnostic "%s" for %s\n' "$2" "$1"
+	fi
+}
+
+content=$(generate "${workdir}/sample.lang")
+
+# The generated header must reference the template chunks of the language
+# and define the arrays and structures used by the module.
+expect "${content}" '#include "../template_xx.h"'
+expect "${content}" 'static const nfi_str_t nfi_xx_short_weekday[] = {'
+expect "${content}" 'static const nfi_str_t nfi_xx_long_weekday[] = {'
+expect "${content}" 'static const nfi_str_t nfi_xx_short_month[] = {'
+expect "${content}" 'static const nfi_str_t nfi_xx_long_month[] = {'
+expect "${content}" 'static const ngx_fancyindex_template_t nfi_template_xx = {'
+expect "${content}" 'NFI_TEMPLATE_FIELDS(xx)'
+expect "${content}" 'static const ngx_fancyindex_lang_t nfi_lang_xx = {'
+
+# Every entry of the lists must be present, including the multi-byte ones
+# at the end of the lists.
+expect "${content}" 'NFI_S("星期日")'
+expect "${content}" 'NFI_S("星期六")'
+expect "${content}" 'NFI_S("十一月")'
+expect "${content}" 'NFI_S("十二月")'
+expect "${content}" 'NFI_S("上级目录")'
+
+# The precomputed maximum lengths are byte lengths: "周一" needs 6 bytes,
+# while "星期日" and "十一月" need 9 bytes each.
+expect "${content}" '    6, 9, 9, 9,'
+
+# Missing required keys are rejected.
+grep -v '^code = ' "${workdir}/sample.lang" > "${workdir}/missing.lang"
+expect_failure "${workdir}/missing.lang" 'missing required key: code'
+
+# Lists with the wrong number of items are rejected.
+sed 's/^short_weekday = .*/short_weekday = 周日|周一/' \
+	"${workdir}/sample.lang" > "${workdir}/short.lang"
+expect_failure "${workdir}/short.lang" \
+	'short_weekday: expected 7 items, got 2'
+
+# The headers checked in the repository must match their sources.
+cd "${i18ndir}"
+for source in *.lang ; do
+	header="${source%.lang}.h"
+	generate "${source}" > "${workdir}/${header}"
+	if ! diff -u "${header}" "${workdir}/${header}" > "${workdir}/diff" ; then
+		cat "${workdir}/diff" 1>&2
+		fail '%s is out of date, run i18n/gen_i18n.sh\n' "${header}"
+	fi
+done

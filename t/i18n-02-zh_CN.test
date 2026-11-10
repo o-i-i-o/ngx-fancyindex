@@ -1,0 +1,19 @@
+#! /bin/bash
+cat <<---
+This test checks the labels emitted when "fancyindex_language zh_CN" is
+configured. The labels are multi-byte UTF-8 strings, so this also exercises
+the buffer sizing of the generated template chunks.
+--
+
+nginx_start 'fancyindex_language zh_CN;'
+content=$(fetch '/child-directory/')
+
+for label in '目录索引：' '文件名称' '文件大小' '修改时间' '上级目录' ; do
+	if ! grep -qF "${label}" <<< "${content}" ; then
+		fail 'missing Chinese label: %s\n' "${label}"
+	fi
+done
+
+if grep -qF 'File Name' <<< "${content}" ; then
+	fail 'English labels are present with fancyindex_language zh_CN\n'
+fi
