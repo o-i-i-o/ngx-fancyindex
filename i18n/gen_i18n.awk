@@ -10,9 +10,14 @@ BEGIN {
 }
 
 function trim(s) {
+    gsub(/\r/, "", s)
     gsub(/^[ \t]+/, "", s)
     gsub(/[ \t]+$/, "", s)
     return s
+}
+
+function isident(s) {
+    return s ~ /^[A-Za-z_][A-Za-z0-9_]*$/
 }
 
 function cstr(s) {
@@ -76,6 +81,13 @@ END {
     am_lower = need("am_lower")
     pm_lower = need("pm_lower")
     parent_dir = need("parent_dir")
+
+    if (!isident(name)) {
+        err("name is not a valid C identifier: " name)
+    }
+    if (!isident(prefix)) {
+        err("template_prefix is not a valid C identifier: " prefix)
+    }
 
     printf "/* Automagically generated from %s, do not edit! */\n\n", FILENAME
     printf "#include \"%s\"\n\n", header

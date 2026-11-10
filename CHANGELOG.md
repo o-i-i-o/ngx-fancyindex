@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- New `fancyindex_language` directive, which selects the language used for the
+  built-in output (`en`, `zh_CN`, or `auto` to negotiate it from the
+  `Accept-Language` header). Translations live in `i18n/*.lang` sources and
+  are compiled in at build time.
+- Chinese translation of the documentation (`readme_zh.md`).
+
+### Fixed
+- The `%I`, `%l` and `%r` time formats now render the 12-hour clock correctly
+  (for example 06:00 instead of 07:00).
 
 ## [0.6.0] - 2026-02-24
 ### Added

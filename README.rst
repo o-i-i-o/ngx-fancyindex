@@ -287,10 +287,12 @@ fancyindex_language
 :Description:
   Selects the language used for the built-in output: the template labels and
   the names of weekdays, months and the AM/PM markers. When set to *auto*, the
-  ``Accept-Language`` header of the request is inspected and Chinese is used
-  if it mentions ``zh``, English otherwise. Custom headers and footers
-  supplied through ``fancyindex_header`` and ``fancyindex_footer`` are not
-  affected and are used as-is.
+  ``Accept-Language`` header of the request is inspected and the supported
+  language with the highest quality value is used; entries with ``q=0`` are
+  ignored, ties keep the order in which they appear, and English is used when
+  no supported language matches. Custom headers and footers supplied through
+  ``fancyindex_header`` and ``fancyindex_footer`` are not affected and are
+  used as-is.
 
 fancyindex_time_format
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -1,8 +1,9 @@
 #! /bin/bash
 cat <<---
-This test checks "fancyindex_language auto", which walks the Accept-Language
-header in the order given by the client and falls back to English when no
-supported language matches.
+This test checks "fancyindex_language auto", which picks the supported
+language with the highest quality value from the Accept-Language header,
+ignores entries with q=0, keeps the header order for equal weights, and
+falls back to English when no supported language matches.
 --
 
 nginx_start 'fancyindex_language auto;'
@@ -36,7 +37,14 @@ check_lang 'zh-Hans-CN' '文件名称' 'File Name'
 # Unsupported languages fall back to English.
 check_lang 'fr-FR,fr;q=0.9' 'File Name' '文件名称'
 
-# The header order wins over the quality values.
+# Higher quality values win, regardless of the position.
+check_lang 'en-US;q=0.5,zh-CN;q=0.9' '文件名称' 'File Name'
+check_lang 'zh-CN;q=0.5,en-US;q=0.9' 'File Name' '文件名称'
+
+# Entries with q=0 are not acceptable.
+check_lang 'zh-CN;q=0,en-US' 'File Name' '文件名称'
+
+# Equal weights keep the order in the header.
 check_lang 'en-US,zh-CN' 'File Name' '文件名称'
 check_lang 'zh-CN,en-US' '文件名称' 'File Name'
 

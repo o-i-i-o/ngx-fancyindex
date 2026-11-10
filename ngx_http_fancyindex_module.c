@@ -35,6 +35,9 @@
 #endif /* __GNUC__ */
 
 
+#define NFI_HOUR12(t) \
+    ((((t)->ngx_tm_hour) % 12) == 0 ? 12 : ((t)->ngx_tm_hour) % 12)
+
 #define DATETIME_FORMATS(F_, t, lang) \
     F_ ('a', (lang)->short_weekday_max, "%s",                            \
                  (lang)->short_weekday[((t)->ngx_tm_wday + 6) % 7].data ) \
@@ -51,9 +54,9 @@
                   (t)->ngx_tm_mon,                                      \
                   (t)->ngx_tm_mday                                     ) \
     F_ ('H',  2, "%02d", (t)->ngx_tm_hour                              ) \
-    F_ ('I',  2, "%02d", ((t)->ngx_tm_hour % 12) + 1                   ) \
+    F_ ('I',  2, "%02d", NFI_HOUR12(t)                                 ) \
     F_ ('k',  2, "%2d",  (t)->ngx_tm_hour                              ) \
-    F_ ('l',  2, "%2d",  ((t)->ngx_tm_hour % 12) + 1                   ) \
+    F_ ('l',  2, "%2d",  NFI_HOUR12(t)                                 ) \
     F_ ('m',  2, "%02d", (t)->ngx_tm_mon                               ) \
     F_ ('M',  2, "%02d", (t)->ngx_tm_min                               ) \
     F_ ('p', NFI_MAX((lang)->am.len, (lang)->pm.len),                   \
@@ -64,7 +67,7 @@
                  (((t)->ngx_tm_hour < 12) ? (lang)->am_lower.data : (lang)->pm_lower.data) ) \
     F_ ('r', 9 + NFI_MAX((lang)->am.len, (lang)->pm.len),                \
                  "%02d:%02d:%02d %2s",                                  \
-                 ((t)->ngx_tm_hour % 12) + 1,                           \
+                 NFI_HOUR12(t),                                         \
                  (t)->ngx_tm_min,                                       \
                  (t)->ngx_tm_sec,                                       \
                  (((t)->ngx_tm_hour < 12) ? (lang)->am.data : (lang)->pm.data) ) \
@@ -653,9 +656,69 @@ ngx_fancyindex_escape_filename(u_char *dst, u_char *src, size_t size)
 
 
 /*
- * Select the language used for the built-in output. With "auto", the
- * Accept-Language header is walked in order and the first language whose
- * prefix matches (for example "zh" for "zh-CN") is used.
+ * Parse the quality value of an Accept-Language entry. "p" points to the
+ * semicolon after the language range, "end" to the end of the header value,
+ * and "next" is set to the comma starting the next entry (or to "end").
+ * Missing or malformed values default to q=1, returned as 1000.
+ */
+static ngx_uint_t
+ngx_http_fancyindex_lang_quality(u_char *p, u_char *end, u_char **next)
+{
+    u_char      *param;
+    ngx_uint_t   q;
+
+    *next = ngx_strlchr(p, end, ',');
+    if (*next == NULL) {
+        *next = end;
+    }
+
+    while (p < *next) {
+        while (p < *next && (*p == ';' || *p == ' ' || *p == '\t')) {
+            p++;
+        }
+
+        param = p;
+        while (param < *next && *param != ';') {
+            param++;
+        }
+
+        if (param - p >= 2 && (p[0] == 'q' || p[0] == 'Q') && p[1] == '=') {
+            p += 2;
+            q = 0;
+
+            if (p < param && *p >= '0' && *p <= '9') {
+                q = (ngx_uint_t) (*p++ - '0') * 1000;
+            }
+
+            if (p < param && *p == '.') {
+                p++;
+
+                if (p < param && *p >= '0' && *p <= '9') {
+                    q += (ngx_uint_t) (*p++ - '0') * 100;
+                }
+                if (p < param && *p >= '0' && *p <= '9') {
+                    q += (ngx_uint_t) (*p++ - '0') * 10;
+                }
+                if (p < param && *p >= '0' && *p <= '9') {
+                    q += (ngx_uint_t) (*p++ - '0');
+                }
+            }
+
+            return (q > 1000) ? 1000 : q;
+        }
+
+        p = param;
+    }
+
+    return 1000;
+}
+
+
+/*
+ * Select the language used for the built-in output. With "auto", all the
+ * Accept-Language header fields are scanned and the supported language with
+ * the highest quality value wins. Entries with q=0 are ignored and ties keep
+ * the order in which they appear in the header.
  */
 static const ngx_fancyindex_lang_t *
 ngx_http_fancyindex_get_lang(ngx_http_request_t *r,
@@ -663,13 +726,17 @@ ngx_http_fancyindex_get_lang(ngx_http_request_t *r,
 {
     ngx_list_part_t *part;
     ngx_table_elt_t *header;
-    ngx_uint_t       i, j;
+    ngx_uint_t       i, j, quality, best_quality;
     const nfi_str_t *code;
-    u_char          *p, *q, *end;
+    const ngx_fancyindex_lang_t *best;
+    u_char          *p, *q, *end, *next;
 
     if (alcf->language < NGX_HTTP_FANCYINDEX_LANG_COUNT) {
         return nfi_languages[alcf->language];
     }
+
+    best = NULL;
+    best_quality = 0;
 
     part = &r->headers_in.headers.part;
     header = part->elts;
@@ -696,7 +763,7 @@ ngx_http_fancyindex_get_lang(ngx_http_request_t *r,
         end = p + header[i].value.len;
 
         while (p < end) {
-            while (p < end && (*p == ' ' || *p == ',')) {
+            while (p < end && (*p == ' ' || *p == '\t' || *p == ',')) {
                 p++;
             }
 
@@ -704,34 +771,45 @@ ngx_http_fancyindex_get_lang(ngx_http_request_t *r,
             while (q < end && *q != ',' && *q != ';') {
                 q++;
             }
-            while (q > p && q[-1] == ' ') {
+            while (q > p && (q[-1] == ' ' || q[-1] == '\t')) {
                 q--;
             }
 
-            for (j = 0; j < NGX_HTTP_FANCYINDEX_LANG_COUNT; j++) {
-                code = &nfi_languages[j]->code;
+            if (q < end && *q == ';') {
+                quality = ngx_http_fancyindex_lang_quality(q, end, &next);
+            } else {
+                quality = 1000;
+                next = q;
+            }
 
-                if ((size_t) (q - p) >= code->len
-                    && ngx_strncasecmp(p, (u_char *) code->data,
-                                       code->len) == 0
-                    && ((size_t) (q - p) == code->len
-                        || p[code->len] == '-'
-                        || p[code->len] == '_'))
-                {
-                    return nfi_languages[j];
+            if (quality > 0) {
+                for (j = 0; j < NGX_HTTP_FANCYINDEX_LANG_COUNT; j++) {
+                    code = &nfi_languages[j]->code;
+
+                    if ((size_t) (q - p) >= code->len
+                        && ngx_strncasecmp(p, (u_char *) code->data,
+                                           code->len) == 0
+                        && ((size_t) (q - p) == code->len
+                            || p[code->len] == '-'
+                            || p[code->len] == '_'))
+                    {
+                        if (best == NULL || quality > best_quality) {
+                            best = nfi_languages[j];
+                            best_quality = quality;
+                        }
+                        break;
+                    }
                 }
             }
 
-            p = q;
+            p = next;
             while (p < end && *p != ',') {
                 p++;
             }
         }
-
-        break;
     }
 
-    return nfi_languages[0];
+    return (best != NULL) ? best : nfi_languages[NGX_HTTP_FANCYINDEX_LANG_EN];
 }
 
 

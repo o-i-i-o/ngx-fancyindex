@@ -11,6 +11,7 @@ typedef struct {
 
 #define NFI_S(s) { (s), sizeof(s) - 1 }
 #define NFI_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define nfi_sizeof_ssz(s) (sizeof(s) - 1)
 
 typedef struct {
     const u_char *t01_head1;
@@ -19,7 +20,6 @@ typedef struct {
     const u_char *t04_body1;
     const u_char *t05_body2;
     const u_char *t06_list1;
-    const u_char *t_parentdir_entry;
     const u_char *t07_list2;
     const u_char *t08_foot1;
 
@@ -29,20 +29,17 @@ typedef struct {
     size_t t04_body1_len;
     size_t t05_body2_len;
     size_t t06_list1_len;
-    size_t t_parentdir_entry_len;
     size_t t07_list2_len;
     size_t t08_foot1_len;
 } ngx_fancyindex_template_t;
 
 #define NFI_TEMPLATE_FIELDS(p)                                               \
     p##_t01_head1, p##_t02_head2, p##_t03_head3, p##_t04_body1,              \
-    p##_t05_body2, p##_t06_list1, p##_t_parentdir_entry, p##_t07_list2,      \
-    p##_t08_foot1,                                                           \
+    p##_t05_body2, p##_t06_list1, p##_t07_list2, p##_t08_foot1,              \
     sizeof(p##_t01_head1) - 1, sizeof(p##_t02_head2) - 1,                    \
     sizeof(p##_t03_head3) - 1, sizeof(p##_t04_body1) - 1,                    \
     sizeof(p##_t05_body2) - 1, sizeof(p##_t06_list1) - 1,                    \
-    sizeof(p##_t_parentdir_entry) - 1, sizeof(p##_t07_list2) - 1,            \
-    sizeof(p##_t08_foot1) - 1
+    sizeof(p##_t07_list2) - 1, sizeof(p##_t08_foot1) - 1
 
 typedef struct {
     nfi_str_t code; /**< Language prefix used for Accept-Language matching. */

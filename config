@@ -2,7 +2,7 @@
 ngx_addon_name=ngx_http_fancyindex_module
 
 # Regenerate the language headers from the i18n/*.lang translation sources.
-if [ -x "$ngx_addon_dir/i18n/gen_i18n.sh" ] ; then
+if [ -f "$ngx_addon_dir/i18n/gen_i18n.sh" ] ; then
     sh "$ngx_addon_dir/i18n/gen_i18n.sh" > /dev/null || exit 1
 fi
 

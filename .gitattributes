@@ -2,3 +2,5 @@
 /.travis.yml export-ignore
 /make-dist export-ignore
 t/* text eol=lf
+i18n/* text eol=lf
+*.lang text eol=lf

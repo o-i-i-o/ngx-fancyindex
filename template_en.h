@@ -73,14 +73,6 @@ static const u_char en_t06_list1[] = ""
 "\n"
 "<tbody>"
 ;
-static const u_char en_t_parentdir_entry[] = ""
-"<tr>"
-"<td colspan=\"2\" class=\"link\"><a href=\"../?C=N&amp;O=A\">Parent directory/</a></td>"
-"<td class=\"size\">-</td>"
-"<td class=\"date\">-</td>"
-"</tr>"
-"\n"
-;
 static const u_char en_t07_list2[] = ""
 "</tbody>"
 "</table>"
@@ -91,12 +83,11 @@ static const u_char en_t08_foot1[] = ""
 ;
 #define NFI_EN_TEMPLATE_SIZE (0 \
 	+ nfi_sizeof_ssz(en_t04_body1) \
-	+ nfi_sizeof_ssz(en_t08_foot1) \
-	+ nfi_sizeof_ssz(en_t_parentdir_entry) \
+	+ nfi_sizeof_ssz(en_t07_list2) \
 	+ nfi_sizeof_ssz(en_t06_list1) \
 	+ nfi_sizeof_ssz(en_t03_head3) \
 	+ nfi_sizeof_ssz(en_t02_head2) \
 	+ nfi_sizeof_ssz(en_t05_body2) \
 	+ nfi_sizeof_ssz(en_t01_head1) \
-	+ nfi_sizeof_ssz(en_t07_list2) \
+	+ nfi_sizeof_ssz(en_t08_foot1) \
 	)

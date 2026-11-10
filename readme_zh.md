@@ -250,7 +250,8 @@ location / {
 **默认值：** `fancyindex_language en`  
 **上下文：** `http`、`server`、`location`  
 **描述：** 选择内置输出所使用的语言，包括模板标签以及星期、月份和 AM/PM 标记的名称。
-设置为 `auto` 时会检查请求的 `Accept-Language` 头：包含 `zh` 时使用中文，否则使用英文。
+设置为 `auto` 时会检查请求的 `Accept-Language` 头，选择权重最高且受支持的语言；
+`q=0` 的条目会被忽略，权重相同时按出现顺序取第一个，没有匹配项时回退到英文。
 通过 `fancyindex_header` 和 `fancyindex_footer` 提供的自定义页眉和页脚不受影响，
 会按原样使用。
 

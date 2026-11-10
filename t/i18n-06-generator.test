@@ -90,6 +90,20 @@ sed 's/^short_weekday = .*/short_weekday = 周日|周一/' \
 expect_failure "${workdir}/short.lang" \
 	'short_weekday: expected 7 items, got 2'
 
+# Carriage returns from CRLF sources must not end up in the output.
+awk '{ printf "%s\r\n", $0 }' "${workdir}/sample.lang" \
+	> "${workdir}/crlf.lang"
+content=$(generate "${workdir}/crlf.lang")
+if grep -q $'\r' <<< "${content}" ; then
+	fail 'carriage returns from a CRLF translation source leaked into the output\n'
+fi
+
+# Invalid C identifiers are rejected.
+sed 's/^name = .*/name = zh-CN/' "${workdir}/sample.lang" \
+	> "${workdir}/badname.lang"
+expect_failure "${workdir}/badname.lang" \
+	'name is not a valid C identifier: zh-CN'
+
 # The headers checked in the repository must match their sources.
 cd "${i18ndir}"
 for source in *.lang ; do
